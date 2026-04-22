@@ -1,0 +1,6 @@
+@NotesProject_HostAddress = http://localhost:5216
+
+GET {{NotesProject_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
