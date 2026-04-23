@@ -1,4 +1,5 @@
-﻿using NotesProject.Notes.Entities;
+﻿using Microsoft.EntityFrameworkCore;
+using NotesProject.Notes.Entities;
 using NotesProject.Notes.models;
 using NotesProject.Notes.Models;
 
@@ -27,50 +28,54 @@ public interface INotesHandler
 
 public class NotesHandler : INotesHandler
 {
-  private List<Note> _notes;
+  private readonly NotesProjectContext _context;
 
-  public NotesHandler()
+  public NotesHandler(NotesProjectContext context)
   {
-    _notes = new List<Note>();
+    _context = context;
   }
 
-  public Task<CreateNoteHandlerResponse> CreateNote(CreateNoteHandlerRequest request, CancellationToken cancellationToken)
+  public async Task<CreateNoteHandlerResponse> CreateNote(CreateNoteHandlerRequest request, CancellationToken cancellationToken)
   {
     var newNote = new Note()
     {
-      Id = Guid.NewGuid(),
       Title = request.Title,
       Content = request.Content,
       CreatedAt = DateTime.UtcNow,
       UpdatedAt = DateTime.UtcNow
     };
-    _notes.Add(newNote);
-    return Task.FromResult(new CreateNoteHandlerResponse()
+    _context.Notes.Add(newNote);
+    await _context.SaveChangesAsync(cancellationToken);
+    return new CreateNoteHandlerResponse()
     {
       Id = newNote.Id,
       Title = newNote.Title,
       Content = newNote.Content,
       CreatedAt = newNote.CreatedAt,
       UpdatedAt = newNote.UpdatedAt
-    });
+    };
   }
 
-  public Task<IEnumerable<NoteDto>> GetNotes(CancellationToken cancellationToken)
+  public async Task<IEnumerable<NoteDto>> GetNotes(CancellationToken cancellationToken)
   {
-    return Task.FromResult(_notes.Select(note => new NoteDto()
-    {
-      Id = note.Id,
-      Title = note.Title,
-      Content = note.Content,
-      CreatedAt = note.CreatedAt,
-      UpdatedAt = note.UpdatedAt
-    }));
+    // TODO Add pagination and filters
+    var notes = await _context.Notes
+      .Select(note => new NoteDto()
+      {
+        Id = note.Id,
+        Title = note.Title,
+        Content = note.Content,
+        CreatedAt = note.CreatedAt,
+        UpdatedAt = note.UpdatedAt
+      })
+      .ToArrayAsync(cancellationToken);
+    return notes;
   }
 
   public async Task<UpdateNoteHandlerResponse?> UpdateNote(UpdateNoteHandlerRequest request, CancellationToken cancellationToken)
   {
     // find the note
-    var note = await GetNote(request.Id, cancellationToken);
+    var note = await GetMutableNote(request.Id, cancellationToken);
     if (note == null)
     {
       return null;
@@ -79,6 +84,7 @@ public class NotesHandler : INotesHandler
     note.Title = request.Title;
     note.Content = request.Content;
     note.UpdatedAt = DateTime.UtcNow;
+    await _context.SaveChangesAsync(cancellationToken);
     return new UpdateNoteHandlerResponse()
     {
       Id = note.Id,
@@ -92,19 +98,26 @@ public class NotesHandler : INotesHandler
   public async Task<NoteDto?> DeleteNote(Guid noteId, CancellationToken cancellationToken)
   {
     // find note's index
-    var noteIdx = _notes.FindIndex(note => note.Id == noteId);
-    if (noteIdx == -1)
+    var note = await GetMutableNote(noteId, cancellationToken);
+    if (note == null)
     {
       return null;
     }
-    _notes.RemoveAt(noteIdx);
+    _context.Notes.Remove(note);
+    await _context.SaveChangesAsync(cancellationToken);
     return new NoteDto()
     {
+      Id = note.Id,
+      Title = note.Title,
+      Content = note.Content,
+      CreatedAt = note.CreatedAt,
+      UpdatedAt = note.UpdatedAt
     };
   }
 
-  private Task<Note?> GetNote(Guid noteId, CancellationToken cancellationToken)
+  private async Task<Note?> GetMutableNote(Guid noteId, CancellationToken cancellationToken)
   {
-    return Task.FromResult(_notes.FirstOrDefault(note => note.Id == noteId));
+    var note = await _context.Notes.FirstOrDefaultAsync(x => x.Id.Equals(noteId), cancellationToken);
+    return note;
   }
 }
