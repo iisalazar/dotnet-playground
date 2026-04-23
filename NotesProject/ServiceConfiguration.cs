@@ -7,7 +7,7 @@ public static class ServiceConfiguration
   public static IServiceCollection ConfigureServices(this IServiceCollection services)
   {
     // setup handlers
-    services.AddSingleton<INotesHandler, NotesHandler>();
+    services.AddScoped<INotesHandler, NotesHandler>();
     return services;
   }
 }
