@@ -1,0 +1,17 @@
+﻿services:
+  notesproject:
+    image: postgres:latest
+    container_name: notesproject_db
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: b5cac30d-295b-4221-8180-469a55f84fc8
+      POSTGRES_DB: notesproject-db
+    ports:
+      - "5432:5432"
+    volumes:
+      - notesproject_db_data:/var/lib/postgresql/notesproject-data
+
+volumes:
+  notesproject_db_data:
+
